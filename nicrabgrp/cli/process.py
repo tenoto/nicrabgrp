@@ -40,6 +40,21 @@ def add_grpflag_to_xrayfiles(file_path,outdir):
 	process_manager = nicrabgrp.process.ProcessManager(file_path,outdir=outdir)
 	process_manager.add_grpflag_to_xrayfiles()	
 
+@cli.command(help="Plot indivicual pulse profiles.")
+@click.argument("file_path", type=click.Path(exists=True))
+@click.option("--outdir", type=click.Path(), default='out/crabgrp')
+def plot_individual_profiles(file_path,outdir):
+	process_manager = nicrabgrp.process.ProcessManager(file_path,outdir=outdir)
+	process_manager.plot_individual_profiles()	
+
+@cli.command(help="Calculate accumulated significance.")
+@click.argument("file_path", type=click.Path(exists=True))
+@click.option("--indir", type=click.Path())
+@click.option("--outdir", type=click.Path(), default='out/crabgrp_accumulation')
+def accumulated_significance(file_path,indir,outdir):
+	process_manager = nicrabgrp.process.ProcessManager(file_path,outdir=indir)
+	process_manager.accumulated_significance(indir=indir,outdir=outdir)	
+
 def main():
 	cli()
 

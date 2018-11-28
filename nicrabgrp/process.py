@@ -221,7 +221,28 @@ class ObservationUnit():
 		pi_max = int(self.param['NICER_ENERGY_MAX_KEV'] * nicrabgrp.const.NICER_KEV2PI)
 		cmd = 'fselect %s %s "(PI >= %d) && (PI <= %d)"' % (self.param['nievt_cl_bary_phase_grpflag'],
 			self.param['nievt_cl_bary_phase_grpflag_esel'],pi_min,pi_max)
-		print(cmd)
+		print(cmd);os.system(cmd)
+
+	def plot_pulse_profile(self):
+		print('--- %s method: %s ---' % (self.param['dataid'],sys._getframe().f_code.co_name))
+
+		self.param['nipls_cl_bary_phase_grpflag_esel'] = self.param['nievt_cl_bary_phase_grpflag_esel'].replace('.evt','_pls.fits')
+		xrayevtlist = nicrabgrp.xray.XrayEventList([self.param['nievt_cl_bary_phase_grpflag_esel']])
+		xrayevtlist.generate_profile_fitsfile(self.param['nipls_cl_bary_phase_grpflag_esel'])
+
+		for nphase in nicrabgrp.xray.NPHASE_LIST_DEFAULT:
+			outpdf = '%s_n%d.pdf' % (self.param['nipls_cl_bary_phase_grpflag_esel'].replace('.fits',''),nphase)
+			title  = '%s, Phase N%d, ' % (self.param['dataid'],nphase)
+			title += '{:.1e} X-rays, {:.1e} MP-GRPs ({:.3f}%)'.format(xrayevtlist.numofevt_all,xrayevtlist.numofevt_mpgrp,xrayevtlist.fraction_ipgrp*100.0)
+			xrayprofile = nicrabgrp.xray.XrayProfile(self.param['nipls_cl_bary_phase_grpflag_esel'])
+			xrayprofile.plot_profile_fitsfile(nphase=nphase,outpdf=outpdf,xmin=0.0,xmax=2.0,ymin=None,ymax=None,title=title)
+			outpdf_zoom = '%s_n%d_zoom.pdf' % (self.param['nipls_cl_bary_phase_grpflag_esel'].replace('.fits',''),nphase)			
+			xrayprofile.plot_profile_fitsfile(nphase=nphase,outpdf=outpdf_zoom,xmin=0.94,xmax=1.06,ymin=None,ymax=None,title=title)
+
+		enhancement, significance = xrayprofile.get_enhancement_significance(target_bins_list=self.param['GRP_SEARCH_TARGET_BINS_LIST'],nphase=self.param['GRP_SEARCH_NPHASE'])
+		self.param['enhancement_N%d'] = enhancement
+		self.param['significance_N%d'] = enhancement		
+		print(enhancement, significance)
 
 	def write_parameter_yamlfile(self):
 		print('--- %s method: %s ---' % (self.param['dataid'],sys._getframe().f_code.co_name))
@@ -265,9 +286,6 @@ class ProcessManager():
 		print("setup yaml file {} is successfully loaded.".format(self.file_path))
 		self.param = yaml.load(open(self.file_path))
 
-		# set individual observations 
-		self.read_ephemeris_file()	
-
 	def read_ephemeris_file(self):
 		print('--- ProcessManager method: %s ---' % sys._getframe().f_code.co_name)
 		self.df = pd.read_csv(self.param['CRAB_PULSAR_EPHEMERIS_FILE'],
@@ -286,6 +304,10 @@ class ProcessManager():
 
 	def convert_radiofiles(self):
 		print('--- ProcessManager method: %s ---' % sys._getframe().f_code.co_name)		
+
+		# set individual observations 
+		self.read_ephemeris_file()	
+
 		for obs in self.observationunit_list:
 			obs.make_suboutdir()
 			obs.set_gti_file()		
@@ -296,8 +318,12 @@ class ProcessManager():
 			obs.convert_radioipgrp_txt2fits()
 			obs.write_parameter_yamlfile()
 
-	def prepare_xrayfiles(self):
+	def prepare_xrayfiles(self):	
 		print('--- ProcessManager method: %s ---' % sys._getframe().f_code.co_name)		
+
+		# set individual observations 
+		self.read_ephemeris_file()	
+
 		for obs in self.observationunit_list:
 			obs.make_suboutdir()		
 			obs.set_nicer_filenames()
@@ -308,7 +334,65 @@ class ProcessManager():
 
 	def add_grpflag_to_xrayfiles(self):
 		print('--- ProcessManager method: %s ---' % sys._getframe().f_code.co_name)		
+
+		# set individual observations 
+		self.read_ephemeris_file()	
+
 		for obs in self.observationunit_list:
 			obs.add_grpflag_to_xrayevents()
 			obs.write_parameter_yamlfile()
+
+	def plot_individual_profiles(self):
+		print('--- ProcessManager method: %s ---' % sys._getframe().f_code.co_name)		
+
+		# set individual observations 
+		self.read_ephemeris_file()	
+
+		for obs in self.observationunit_list:
+			obs.show_parameters()
+			obs.plot_pulse_profile()
+			obs.write_parameter_yamlfile()
+
+	def accumulated_significance(self,indir,outdir):
+		print('--- ProcessManager method: %s ---' % sys._getframe().f_code.co_name)		
+
+		self.df = pd.read_csv(self.param['CRAB_PULSAR_EPHEMERIS_FILE'],
+			delim_whitespace=True,header=0)
+
+		self.observationunit_list = []
+		for index, row in self.df.iterrows():
+			if row['add_flag'] != True:
+				sys.stdout.write('-- ObservationUnit {} is skipped.\n'.format(row['dataid']))
+				continue 
+			self.observationunit_list.append(ObservationUnit(row,self.param,indir))			
+			search_filename = '%s/%s/%s_setup.yaml' % (indir,row['dataid'],row['dataid'])
+			if len(glob.glob(search_filename)) > 0:
+				self.observationunit_list[-1].reload_parameter_yamlfile(glob.glob(search_filename)[0])			
+			#self.observationunit_list[-1].show_parameters()		
+
+		if outdir != '' and not os.path.exists(outdir):
+			os.makedirs(outdir)
+
+		for i in range(len(self.observationunit_list)):
+			print('number of data:%d' % (i+1))
+			event_list = []
+			for obsunit in self.observationunit_list[0:i+1]:
+				event_list.append(obsunit.param['nievt_cl_bary_phase_grpflag_esel'])
+			print(event_list)
+			xrayevtlist = nicrabgrp.xray.XrayEventList(event_list)
+			outprofilefits = '%s/niacc%02d/niacc%02d_profile.fits' % (outdir,i+1,i+1)
+			xrayevtlist.generate_profile_fitsfile(outprofilefits)
+			for nphase in nicrabgrp.xray.NPHASE_LIST_DEFAULT:
+					outpdf = '%s_n%02d.pdf' % (outprofilefits.replace('.fits',''),nphase)
+					title  = 'Sum:%d, Phase N%d, ' % (i+1,nphase)
+					title += '{:.1e} X-rays, {:.1e} MP-GRPs ({:.3f}%)'.format(xrayevtlist.numofevt_all,xrayevtlist.numofevt_mpgrp,xrayevtlist.fraction_ipgrp*100.0)
+					xrayprofile = nicrabgrp.xray.XrayProfile(outprofilefits)
+
+					enhancement, significance = xrayprofile.get_enhancement_significance(
+						target_bins_list=self.param['GRP_SEARCH_TARGET_BINS_LIST'],
+						nphase=self.param['GRP_SEARCH_NPHASE'])
+					legend_title = 'Enhance:%.2f%% (%.2f-sigma)' % ((enhancement-1.0)*100.0,significance)
+					xrayprofile.plot_profile_fitsfile(nphase=nphase,outpdf=outpdf,xmin=0.0,xmax=2.0,ymin=None,ymax=None,title=title,legend_title=legend_title)
+					outpdf_zoom = '%s_n%02d_zoom.pdf' % (outprofilefits.replace('.fits',''),nphase)			
+					xrayprofile.plot_profile_fitsfile(nphase=nphase,outpdf=outpdf_zoom,xmin=0.94,xmax=1.06,ymin=None,ymax=None,title=title,legend_title=legend_title)
 

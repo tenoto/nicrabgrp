@@ -11,6 +11,7 @@ pipenv install
 everytime 
 
 ```
+heainit
 pipenv shell 
 source setenv/setenv.bashrc
 ```

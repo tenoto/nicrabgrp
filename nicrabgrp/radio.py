@@ -125,7 +125,10 @@ class GiantRadioPulseTextFile(GiantRadioPulse):
 		cols.append(fits.Column(name='GRP_ORGID',format='I',array=self.df['nORG']))
 		cols.append(fits.Column(name='MOD_PULSE_NUMBER',format='K',array=self.df['NSEQpulse']))
 		cols.append(fits.Column(name='TIME_SOD_TDB',format='D',array=self.df['TDBsec'],unit='sec'))	
-		cols.append(fits.Column(name='TIME_MJD',format='D',array=self.df['MJD'],unit='day'))
+		if 'MJD' in self.df:
+			cols.append(fits.Column(name='TIME_MJD_TDB',format='D',array=self.df['MJD'],unit='day'))
+		elif 'MJDtbd' in self.df:
+			cols.append(fits.Column(name='TIME_MJD_TDB',format='D',array=self.df['MJDtbd'],unit='day'))			
 		cols.append(fits.Column(name='PEAK_SN',format='D',array=self.df['peakSN']))
 		cols.append(fits.Column(name='SUM_SN',format='D',array=self.df['sumSN']))	
 		cols.append(fits.Column(name='NUM_SUBPULSE',format='I',array=self.df['Nsubpulse']))

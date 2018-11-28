@@ -3,8 +3,10 @@ CRAB_PULSAR_RA_J2000:  83.633218 # (05:34:31.97232)
 CRAB_PULSAR_DEC_J2000: 22.014464 # (+22:00:52.069)
 CRAB_PULSAR_EPHEMERIS_FILE: '/Users/enoto/Dropbox/enoto/library/nicrabgrp/data/radio/ephemeris/crab_pulsar_ephemeris_v181126.csv'
 PATH_TO_RADIO_DATADIR: '/Users/enoto/Dropbox/enoto/library/nicrabgrp/data/radio/original/v181127/allradioSNge4.8PHpm3'
-# PATH_TO_XRAY_DATADIR: '/Users/enoto/work/drbv1/reporitory/heasarc/data/nicer/data/obs'
-PATH_TO_XRAY_DATADIR: '/Users/enoto/Dropbox/enoto/library/nicrabgrp/data/xray'
-GRP_THRESHOLD_SN: 5.0
+PATH_TO_XRAY_DATADIR: '/Users/enoto/work/drbv1/reporitory/heasarc/data/nicer/data/obs'
+#PATH_TO_XRAY_DATADIR: '/Users/enoto/Dropbox/enoto/library/nicrabgrp/data/xray'
+#GRP_THRESHOLD_SN: 5.0
 NICER_ENERGY_MIN_KEV: 0.3
 NICER_ENERGY_MAX_KEV: 12.0
+GRP_SEARCH_NPHASE: 250
+GRP_SEARCH_TARGET_BINS_LIST: [246,247,248,249]
